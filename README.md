@@ -8,7 +8,8 @@ Parse/scrape content from various sources and store it as searchable notes.
 - **AI:** optional Claude-generated summary, highlights, and tags on ingest
   (text sources are summarized; image sources are captioned + OCR'd via vision).
   Tags populate the dashboard tag filter.
-- **Stack:** Django 5 · HTMX · Alpine.js · PicoCSS · Postgres · Celery + Redis.
+- **Stack:** Django 6 · HTMX · Alpine.js · PicoCSS · Postgres · Celery + Redis
+  · Python 3.14 · uv. Dependencies track latest (Dependabot keeps them current).
 
 ## Quick start (Docker)
 
