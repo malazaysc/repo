@@ -43,11 +43,7 @@ services:
         condition: service_healthy
 
   worker:
-    build:
-      context: .
-      args:
-        # Set INSTALL_BROWSERS=1 in .env to bake Playwright+Chromium for X scraping.
-        INSTALL_BROWSERS: ${INSTALL_BROWSERS:-0}
+    build: .
     command: celery -A config worker --loglevel=info
     volumes:
       - .:/app

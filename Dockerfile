@@ -23,26 +23,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
-# Set to 1 to install Playwright + Chromium for X/Twitter scraping (worker).
-ARG INSTALL_BROWSERS=0
-
 # Install dependencies first (better layer caching).
 COPY pyproject.toml ./
 # uv.lock is optional on first build; copy if present.
 COPY uv.loc[k] ./
-RUN if [ "$INSTALL_BROWSERS" = "1" ]; then \
-        uv sync --no-install-project --no-dev --group browser; \
-    else \
-        uv sync --no-install-project --no-dev; \
-    fi
+RUN uv sync --no-install-project --no-dev
 
 # Copy the application
 COPY . .
-
-# Download the Chromium binary + its OS deps only when browser scraping is on.
-RUN if [ "$INSTALL_BROWSERS" = "1" ]; then \
-        python -m playwright install --with-deps chromium; \
-    fi
 
 EXPOSE 8000
 

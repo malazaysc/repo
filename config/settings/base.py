@@ -119,13 +119,10 @@ YOUTUBE_TRANSCRIPT_LANGUAGES = env.list(
     "YOUTUBE_TRANSCRIPT_LANGUAGES", default=["en", "es"]
 )
 
-# X / Twitter — scraped via an authenticated headless browser (Playwright).
-# Capture a session first:  python manage.py capture_x_session
-X_PARSER_ENABLED = env.bool("X_PARSER_ENABLED", default=False)
-X_STORAGE_STATE_PATH = env(
-    "X_STORAGE_STATE_PATH", default=str(BASE_DIR / "secrets" / "x_storage_state.json")
-)
-X_HEADLESS = env.bool("X_HEADLESS", default=True)
+# Clip-to-Notes browser extension: shared token the extension sends to /api/clip/.
+# Generate one (e.g. `python -c "import secrets; print(secrets.token_urlsafe(32))"`)
+# and set it in .env + the extension. Empty disables the endpoint.
+CLIP_TOKEN = env("CLIP_TOKEN", default="")
 
 # AI summaries (Claude)
 AI_SUMMARY_ENABLED = env.bool("AI_SUMMARY_ENABLED", default=False)

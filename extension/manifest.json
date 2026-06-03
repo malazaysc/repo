@@ -1,0 +1,12 @@
+{
+  "manifest_version": 3,
+  "name": "Clip to Notes",
+  "version": "0.1.0",
+  "description": "Clip the current page (articles, X posts/articles, anything) into your local source-to-notes app.",
+  "permissions": ["activeTab", "scripting", "storage"],
+  "host_permissions": ["http://localhost/*", "http://127.0.0.1/*"],
+  "action": {
+    "default_title": "Clip to Notes",
+    "default_popup": "popup.html"
+  }
+}

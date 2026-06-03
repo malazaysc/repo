@@ -18,8 +18,10 @@ DEBUG = False
 CELERY_TASK_ALWAYS_EAGER = True
 CELERY_TASK_EAGER_PROPAGATES = True
 
-# AI off by default; tests that need it mock the client or override the setting.
+# Pin env-driven feature flags so tests don't depend on the developer's .env.
+# Tests that exercise these override them explicitly.
 AI_SUMMARY_ENABLED = False
+CLIP_TOKEN = "test-clip-token"
 
 # Faster hashing in tests.
 PASSWORD_HASHERS = ["django.contrib.auth.hashers.MD5PasswordHasher"]

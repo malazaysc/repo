@@ -22,4 +22,4 @@ def test_failed_parse_still_sets_source_type(user, monkeypatch):
     note.refresh_from_db()
     assert note.status == NoteStatus.FAILED
     assert note.source_type == SourceType.X
-    assert "X capture is disabled" in note.error_message
+    assert "Clip to Notes" in note.error_message

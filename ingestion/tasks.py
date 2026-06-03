@@ -28,19 +28,8 @@ def ingest_note(self, note_id: int) -> str:
         logger.warning("ingest_note: note %s no longer exists", note_id)
         return "missing"
 
-    note.mark_processing()
-
     try:
-        if note.source_url:
-            _parse_from_url(note)
-        # else: manual text note already has cleaned_text/raw_content.
-
-        _run_ai(note)
-
-        note.status = NoteStatus.DONE
-        note.error_message = ""
-        note.save(update_fields=["status", "error_message", "updated_at"])
-        note.update_search_vector()
+        run_pipeline(note)
         return "done"
 
     except ParserError as exc:
@@ -74,6 +63,26 @@ def _safe_mark_failed(note: Note, message: str) -> None:
         logger.exception("ingest_note: could not mark note %s failed", note.pk)
 
 
+def run_pipeline(note: Note) -> None:
+    """Core ingestion: parse -> images -> AI -> persist. Raises on failure.
+
+    Used for both URL submissions and clipped notes (which arrive with content
+    already populated, so the URL fetch is skipped).
+    """
+    note.mark_processing()
+    # Fetch only when we have a URL and no content yet. Clipped/manual notes
+    # arrive with cleaned_text already populated, so we skip the server fetch.
+    if note.source_url and not note.cleaned_text.strip():
+        _parse_from_url(note)
+    # Pull any attachment images into local storage (covers clipped images too).
+    download_attachments(note)
+    _run_ai(note)
+    note.status = NoteStatus.DONE
+    note.error_message = ""
+    note.save(update_fields=["status", "error_message", "updated_at"])
+    note.update_search_vector()
+
+
 def _parse_from_url(note: Note) -> None:
     parser = get_parser(note.source_url)
     # Reflect the resolved source type immediately so even a failed parse shows
@@ -103,9 +112,6 @@ def _parse_from_url(note: Note) -> None:
                 remote_url=img.url,
                 defaults={"kind": Attachment.Kind.IMAGE, "caption": img.caption[:500]},
             )
-
-    # Pull the images into local storage (non-fatal if any fail).
-    download_attachments(note)
 
 
 def _run_ai(note: Note) -> None:

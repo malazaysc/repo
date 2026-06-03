@@ -3,8 +3,8 @@
 Parse/scrape content from various sources and store it as searchable notes.
 
 - **Sources:** YouTube (multi-language transcripts), generic links/articles
-  (text + images), bare image links, pasted text, and X/Twitter (via an
-  authenticated headless browser — see below).
+  (text + images), bare image links, pasted text, and **anything via the
+  browser extension** — including X/Twitter posts/articles (see below).
 - **AI:** optional Claude-generated summary, highlights, and tags on ingest
   (text sources are summarized; image sources are captioned + OCR'd via vision).
   Tags populate the dashboard tag filter.
@@ -37,26 +37,28 @@ then `docker compose up -d`.
 3. The worker picks a parser via the registry, extracts content, optionally
    summarizes with Claude, and marks the note `done` (or `failed`, with retry).
 
-## Enabling X / Twitter
+## Browser extension (X/Twitter and any page)
 
-X has no free API and blocks anonymous scraping, so ingestion drives a headless
-Chromium loaded with *your* authenticated session.
+X aggressively blocks server-side scraping, so X content — and any
+paywalled/JS-heavy/login-required page — is added with the **Clip to Notes**
+browser extension. It reads the already-rendered page in your normal logged-in
+session (no scraping, no bot-detection) and POSTs it to a token-authenticated
+endpoint. Setup is in [`extension/README.md`](extension/README.md); in short:
 
-1. Bake the browser into the worker image:
+1. Set a token and restart:
    ```bash
-   echo "INSTALL_BROWSERS=1" >> .env
-   docker compose build worker
+   python -c "import secrets; print('CLIP_TOKEN=' + secrets.token_urlsafe(32))" >> .env
+   docker compose up -d --force-recreate web worker
    ```
-2. Capture your session (run on your host — it opens a real browser window):
-   ```bash
-   uv sync --group browser && uv run playwright install chromium
-   uv run python manage.py capture_x_session     # log in, press Enter
-   ```
-   This writes `secrets/x_storage_state.json` (gitignored — it holds live
-   credentials). Mount/copy it where the worker can read `X_STORAGE_STATE_PATH`.
-3. Turn it on: set `X_PARSER_ENABLED=1` in `.env`, then `docker compose up -d`.
+2. Load `extension/` unpacked in `chrome://extensions` (Developer mode), then in
+   the popup's **Settings** set the server URL (`http://localhost:8000`) and the
+   `CLIP_TOKEN`.
+3. On any page, click the extension → **Clip this page**. The note appears on the
+   dashboard, auto-summarized + tagged when AI is on.
 
-Until then, X links fail with a friendly message and you can "paste text instead".
+Under the hood: `POST /api/clip/` (`Authorization: Bearer <CLIP_TOKEN>`, JSON
+`{url,title,text,images}`) creates a note from the supplied content — the
+ingestion pipeline skips the server fetch when content is already present.
 
 ## Search
 
