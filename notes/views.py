@@ -58,24 +58,18 @@ def add_source(request):
 
     data = form.cleaned_data
     if data["source_url"]:
-        note = Note.objects.create(
-            owner=request.user,
-            source_url=data["source_url"],
-            title=data["title"],
-            status=NoteStatus.PENDING,
-        )
-        ingest_note.delay(note.pk)
+        fields = {"source_url": data["source_url"], "title": data["title"]}
     else:
         # Manual text note — no fetching needed; ingest task still summarizes.
-        note = Note.objects.create(
-            owner=request.user,
-            title=data["title"],
-            source_type=SourceType.TEXT,
-            raw_content=data["text"],
-            cleaned_text=data["text"],
-            status=NoteStatus.PENDING,
-        )
-        ingest_note.delay(note.pk)
+        fields = {
+            "title": data["title"],
+            "source_type": SourceType.TEXT,
+            "raw_content": data["text"],
+            "cleaned_text": data["text"],
+        }
+
+    note = Note.objects.create(owner=request.user, status=NoteStatus.PENDING, **fields)
+    ingest_note.delay(note.pk)
 
     # Return the new card; HTMX prepends it and the form resets client-side.
     return render(request, "notes/_card.html", {"note": note})

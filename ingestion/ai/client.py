@@ -8,6 +8,7 @@ or errors, callers get ``None`` and the note ingests without a summary.
 """
 from __future__ import annotations
 
+import functools
 import json
 import logging
 from dataclasses import dataclass, field
@@ -48,10 +49,16 @@ def _ai_ready() -> bool:
     return True
 
 
-def _client():
+@functools.lru_cache(maxsize=1)
+def _build_client(api_key: str):
     import anthropic
 
-    return anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY)
+    return anthropic.Anthropic(api_key=api_key)
+
+
+def _client():
+    # Reuse one client (and its connection pool) across ingests (Q5).
+    return _build_client(settings.ANTHROPIC_API_KEY)
 
 
 @dataclass

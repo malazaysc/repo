@@ -7,6 +7,8 @@ from __future__ import annotations
 
 from urllib.parse import urljoin
 
+from bs4 import BeautifulSoup
+
 from notes.models import SourceType
 
 from ..net import UnsafeURLError, safe_get_text
@@ -25,13 +27,16 @@ class ArticleParser(BaseParser):
 
     def parse(self, url: str) -> ParsedContent:
         html = self._fetch(url)
+        # Parse the DOM once and reuse it for images + the text fallback (Q1).
+        soup = BeautifulSoup(html, "html.parser")
 
-        title, text, metadata = self._extract_main(url, html)
-        # Image extraction is best-effort — never let it fail an otherwise-good parse.
+        # Images first — _soup_fallback mutates the soup (strips nav/footer).
         try:
-            images = self._extract_images(url, html)
+            images = self._extract_images(url, soup)
         except Exception:
             images = []
+
+        title, text, metadata = self._extract_main(url, html, soup)
 
         if not text:
             raise ParserError("Could not extract readable text from this page.")
@@ -40,7 +45,7 @@ class ArticleParser(BaseParser):
             source_type=SourceType.ARTICLE,
             title=title,
             text=text,
-            raw=html[:200_000],
+            raw="",  # the cleaned text is the source of truth; don't bloat storage (Q3)
             metadata=metadata,
             images=images,
         )
@@ -53,7 +58,7 @@ class ArticleParser(BaseParser):
         except Exception as exc:  # httpx transport/status errors
             raise ParserError(f"Failed to fetch the page: {exc}") from exc
 
-    def _extract_main(self, url: str, html: str) -> tuple[str, str, dict]:
+    def _extract_main(self, url: str, html: str, soup: BeautifulSoup) -> tuple[str, str, dict]:
         metadata: dict = {}
         title = ""
         text = ""
@@ -78,16 +83,13 @@ class ArticleParser(BaseParser):
             pass
 
         if not text or not title:
-            t2, txt2 = self._soup_fallback(html)
+            t2, txt2 = self._soup_fallback(soup)
             title = title or t2
             text = text or txt2
 
         return title, text, {k: v for k, v in metadata.items() if v}
 
-    def _soup_fallback(self, html: str) -> tuple[str, str]:
-        from bs4 import BeautifulSoup
-
-        soup = BeautifulSoup(html, "html.parser")
+    def _soup_fallback(self, soup: BeautifulSoup) -> tuple[str, str]:
         title = soup.title.string.strip() if soup.title and soup.title.string else ""
         for tag in soup(["script", "style", "nav", "footer", "header"]):
             tag.decompose()
@@ -96,10 +98,7 @@ class ArticleParser(BaseParser):
         )
         return title, text
 
-    def _extract_images(self, url: str, html: str, limit: int = 8) -> list[ParsedImage]:
-        from bs4 import BeautifulSoup
-
-        soup = BeautifulSoup(html, "html.parser")
+    def _extract_images(self, url: str, soup: BeautifulSoup, limit: int = 8) -> list[ParsedImage]:
         images: list[ParsedImage] = []
 
         # Prefer the OpenGraph image first.
@@ -113,7 +112,9 @@ class ArticleParser(BaseParser):
             if not isinstance(src, str) or not src:
                 continue
             alt = img.get("alt", "")
-            images.append(ParsedImage(url=urljoin(url, src), caption=alt if isinstance(alt, str) else ""))
+            images.append(
+                ParsedImage(url=urljoin(url, src), caption=alt if isinstance(alt, str) else "")
+            )
             if len(images) >= limit:
                 break
         return images

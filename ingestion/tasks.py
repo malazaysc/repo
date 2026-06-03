@@ -39,7 +39,7 @@ def ingest_note(self, note_id: int) -> str:
 
         note.status = NoteStatus.DONE
         note.error_message = ""
-        note.save()
+        note.save(update_fields=["status", "error_message", "updated_at"])
         note.update_search_vector()
         return "done"
 
@@ -90,7 +90,11 @@ def _parse_from_url(note: Note) -> None:
     note.cleaned_text = result.text
     if result.metadata:
         note.metadata = {**note.metadata, **result.metadata}
-    note.save()
+    note.save(
+        update_fields=[
+            "source_type", "title", "raw_content", "cleaned_text", "metadata", "updated_at"
+        ]
+    )
 
     for img in result.images:
         if img.url:
@@ -122,7 +126,7 @@ def _run_ai(note: Note) -> None:
         note.cleaned_text = result.summary
     if not note.title and result.summary:
         note.title = result.summary[:120]
-    note.save()
+    note.save(update_fields=["summary", "highlights", "cleaned_text", "title", "updated_at"])
 
     for tag_name in result.tags:
         tag, _ = Tag.objects.get_or_create(name=tag_name)

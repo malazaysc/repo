@@ -32,12 +32,14 @@ def test_assert_safe_url_blocks_internal_and_bad_schemes(url, monkeypatch):
 
 
 def test_assert_safe_url_allows_public(monkeypatch):
-    monkeypatch.setattr(net.socket, "getaddrinfo", lambda *a, **k: [(2, 1, 6, "", ("93.184.216.34", 0))])
+    public = [(2, 1, 6, "", ("93.184.216.34", 0))]
+    monkeypatch.setattr(net.socket, "getaddrinfo", lambda *a, **k: public)
     assert_safe_url("https://example.com/page")  # no raise
 
 
 def test_safe_get_enforces_size_cap(monkeypatch):
-    monkeypatch.setattr(net.socket, "getaddrinfo", lambda *a, **k: [(2, 1, 6, "", ("93.184.216.34", 0))])
+    public = [(2, 1, 6, "", ("93.184.216.34", 0))]
+    monkeypatch.setattr(net.socket, "getaddrinfo", lambda *a, **k: public)
 
     class _Resp:
         is_redirect = False

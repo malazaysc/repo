@@ -57,7 +57,7 @@ def download_attachments(note: Note, *, limit: int = 12) -> int:
             # Not actually an image — leave the remote_url reference as-is.
             continue
         if content_type in _BLOCKED_CONTENT_TYPES:
-            logger.info("attachment blocked (active-content type %s): %s", content_type, att.remote_url)
+            logger.info("attachment blocked (type %s): %s", content_type, att.remote_url)
             continue
 
         filename = _filename_for(att.remote_url, content_type)

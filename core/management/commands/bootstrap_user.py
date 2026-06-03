@@ -25,13 +25,12 @@ class Command(BaseCommand):
         if not password:
             if settings.DEBUG:
                 password = "admin"
-                self.stdout.write(
-                    self.style.WARNING(
-                        "ADMIN_PASSWORD unset — using insecure 'admin' (DEBUG only)."
-                    )
-                )
+                msg = "ADMIN_PASSWORD unset — using insecure 'admin' (DEBUG only)."
+                self.stdout.write(self.style.WARNING(msg))
             else:
-                raise CommandError("ADMIN_PASSWORD must be set (refusing to create a default user).")
+                raise CommandError(
+                    "ADMIN_PASSWORD must be set (refusing to create a default user)."
+                )
 
         user, created = User.objects.get_or_create(
             username=username, defaults={"email": email}
