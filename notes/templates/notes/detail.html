@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+
+{% block title %}{{ note }} · Repo{% endblock %}
+
+{% block content %}
+<p><a href="{% url 'notes:dashboard' %}">← Back to notes</a></p>
+
+<article x-data="{ editing: false }">
+    <header>
+        <span class="source-badge">{{ note.get_source_type_display }}</span>
+        <h2 style="margin:.3rem 0">{{ note.title|default:"Untitled" }}</h2>
+        {% if note.source_url %}
+            <a href="{{ note.source_url }}" target="_blank" rel="noopener"><small>{{ note.source_url }}</small></a>
+        {% endif %}
+    </header>
+
+    {% if note.metadata %}
+    <details>
+        <summary>Metadata</summary>
+        <dl>
+            {% for key, value in note.metadata.items %}
+                <dt><strong>{{ key }}</strong></dt><dd>{{ value }}</dd>
+            {% endfor %}
+        </dl>
+    </details>
+    {% endif %}
+
+    {% if note.summary %}
+        <h3>Summary</h3>
+        <p>{{ note.summary|linebreaks }}</p>
+    {% endif %}
+
+    {% if note.highlights %}
+        <h3>Highlights</h3>
+        <ul>{% for h in note.highlights %}<li>{{ h }}</li>{% endfor %}</ul>
+    {% endif %}
+
+    {% for tag in note.tags.all %}<span class="tag-pill">{{ tag.name }}</span>{% endfor %}
+
+    {% if note.attachments.all %}
+        <h3>Attachments</h3>
+        <div style="display:flex; flex-wrap:wrap; gap:.5rem">
+        {% for att in note.attachments.all %}
+            {% if att.file %}{% firstof att.file.url as src %}{% else %}{% firstof att.remote_url as src %}{% endif %}
+            {% if att.kind == 'image' %}
+                <img src="{{ src }}" alt="{{ att.caption }}"
+                     style="max-width:200px; height:auto; border-radius:.3rem">
+            {% else %}
+                <a href="{{ src }}">{{ att }}</a>
+            {% endif %}
+        {% endfor %}
+        </div>
+    {% endif %}
+
+    <h3 style="margin-top:1.5rem">
+        Content
+        <a href="#" @click.prevent="editing = !editing"><small x-text="editing ? '(cancel)' : '(edit)'"></small></a>
+    </h3>
+
+    <div x-show="!editing">
+        <p style="white-space:pre-wrap">{{ note.cleaned_text|default:"(no content)" }}</p>
+    </div>
+
+    <form x-show="editing" x-cloak method="post" action="{% url 'notes:edit' note.pk %}">
+        {% csrf_token %}
+        <label>Title <input type="text" name="title" value="{{ note.title }}"></label>
+        <label>Summary <textarea name="summary" rows="4">{{ note.summary }}</textarea></label>
+        <label>Content <textarea name="cleaned_text" rows="14">{{ note.cleaned_text }}</textarea></label>
+        <button type="submit">Save</button>
+    </form>
+
+    <footer>
+        <form method="post" action="{% url 'notes:delete' note.pk %}"
+              onsubmit="return confirm('Delete this note?')">
+            {% csrf_token %}
+            <button type="submit" class="secondary outline">Delete note</button>
+        </form>
+    </footer>
+</article>
+<style>[x-cloak]{display:none !important}</style>
+{% endblock %}

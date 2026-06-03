@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# Django
+*.log
+db.sqlite3
+/staticfiles/
+/media/
+
+# Env / secrets
+.env
+/secrets/
+x_storage_state.json
+
+# uv
+# (uv.lock IS committed — do not ignore it)
+
+# Tooling
+.ruff_cache/
+.pytest_cache/
+.mypy_cache/
+
+# Playwright-cli scratch artifacts (snapshots, console logs)
+.playwright-cli/
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/

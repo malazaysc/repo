@@ -1,0 +1,50 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Repo · Notes{% endblock %}</title>
+
+    <!-- PicoCSS (classless minimal styling) -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+    <!-- HTMX -->
+    <script src="https://unpkg.com/htmx.org@2.0.4" defer></script>
+    <!-- Alpine.js -->
+    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+
+    <link rel="stylesheet" href="{% static 'css/app.css' %}">
+    {% block extra_head %}{% endblock %}
+</head>
+<body hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
+    <nav class="container">
+        <ul>
+            <li><strong><a href="{% url 'notes:dashboard' %}">📓 Repo</a></strong></li>
+        </ul>
+        <ul>
+            {% if user.is_authenticated %}
+            <li><a href="{% url 'notes:dashboard' %}">Notes</a></li>
+            <li>
+                <form action="{% url 'logout' %}" method="post" style="margin:0">
+                    {% csrf_token %}
+                    <button type="submit" class="secondary outline">Logout</button>
+                </form>
+            </li>
+            {% else %}
+            <li><a href="{% url 'login' %}" role="button">Login</a></li>
+            {% endif %}
+        </ul>
+    </nav>
+
+    <main class="container">
+        {% if messages %}
+            {% for message in messages %}
+                <article class="{{ message.tags }}">{{ message }}</article>
+            {% endfor %}
+        {% endif %}
+        {% block content %}{% endblock %}
+    </main>
+
+    {% block extra_body %}{% endblock %}
+</body>
+</html>

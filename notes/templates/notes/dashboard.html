@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section x-data="{ mode: 'url' }">
+    <h2>Add a source</h2>
+    {% include "notes/_add_form.html" %}
+</section>
+
+<hr>
+
+<section>
+    <form method="get" role="search" style="display:flex; gap:.5rem; align-items:center">
+        <input type="search" name="q" value="{{ query }}" placeholder="Search notes…">
+        {% if active_tag %}<input type="hidden" name="tag" value="{{ active_tag }}">{% endif %}
+        <button type="submit">Search</button>
+    </form>
+
+    {% if tags %}
+    <p>
+        <a href="{% url 'notes:dashboard' %}{% if query %}?q={{ query }}{% endif %}"
+           class="tag-pill {% if not active_tag %}contrast{% endif %}">all</a>
+        {% for tag in tags %}
+        <a href="?tag={{ tag.slug }}{% if query %}&q={{ query }}{% endif %}"
+           class="tag-pill {% if active_tag == tag.slug %}contrast{% endif %}">{{ tag.name }}</a>
+        {% endfor %}
+    </p>
+    {% endif %}
+</section>
+
+<section id="note-list">
+    {% for note in notes %}
+        {% include "notes/_card.html" %}
+    {% empty %}
+        <p id="empty-state"><em>
+            {% if query %}No notes match “{{ query }}”.{% else %}No notes yet. Add a YouTube link, article, image, or paste some text above.{% endif %}
+        </em></p>
+    {% endfor %}
+</section>
+
+{% if page.paginator.num_pages > 1 %}
+<nav aria-label="pagination" style="display:flex; justify-content:center; gap:1rem; align-items:center">
+    {% if page.has_previous %}
+        <a role="button" class="secondary" href="?page={{ page.previous_page_number }}{% if query %}&q={{ query }}{% endif %}{% if active_tag %}&tag={{ active_tag }}{% endif %}">← Prev</a>
+    {% endif %}
+    <small>Page {{ page.number }} of {{ page.paginator.num_pages }}</small>
+    {% if page.has_next %}
+        <a role="button" class="secondary" href="?page={{ page.next_page_number }}{% if query %}&q={{ query }}{% endif %}{% if active_tag %}&tag={{ active_tag }}{% endif %}">Next →</a>
+    {% endif %}
+</nav>
+{% endif %}
+{% endblock %}

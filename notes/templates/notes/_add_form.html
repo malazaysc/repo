@@ -1,0 +1,31 @@
+{% load static %}
+<form id="add-source-form"
+      hx-post="{% url 'notes:add_source' %}"
+      hx-target="#note-list"
+      hx-swap="afterbegin"
+      hx-on::after-request="if(event.detail.successful) this.reset()"
+      x-data="{ showText: false }">
+    {% csrf_token %}
+
+    {% if form.non_field_errors %}
+        <small style="color:var(--pico-del-color)">{{ form.non_field_errors }}</small>
+    {% endif %}
+
+    <fieldset role="group">
+        {{ form.source_url }}
+        <button type="submit">Add</button>
+    </fieldset>
+
+    <small>
+        <a href="#" @click.prevent="showText = !showText">
+            <span x-text="showText ? '− paste text instead' : '+ paste text instead'"></span>
+        </a>
+    </small>
+
+    <div x-show="showText" x-cloak style="margin-top:.5rem">
+        {{ form.title.label_tag }} {{ form.title }}
+        {{ form.text }}
+    </div>
+</form>
+
+<style>[x-cloak]{display:none !important}</style>

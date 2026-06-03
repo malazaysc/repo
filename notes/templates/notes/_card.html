@@ -1,0 +1,48 @@
+{% comment %}
+A single note card. While the note is in progress it polls its own status
+endpoint and swaps itself in place when ingestion finishes.
+{% endcomment %}
+<article class="note-card" id="note-{{ note.pk }}"
+    {% if note.is_in_progress %}
+         hx-get="{% url 'notes:status' note.pk %}"
+         hx-trigger="load delay:2s"
+         hx-swap="outerHTML"
+    {% endif %}>
+    <header>
+        <span>
+            <span class="source-badge">{{ note.get_source_type_display }}</span>
+            {% if note.status == 'done' %}
+                <a href="{{ note.get_absolute_url }}"><strong>{{ note }}</strong></a>
+            {% else %}
+                <strong>{{ note }}</strong>
+            {% endif %}
+        </span>
+        <span class="status-{{ note.status }}">
+            {% if note.is_in_progress %}<span class="spinner"></span>{% endif %}
+            {{ note.get_status_display }}
+        </span>
+    </header>
+
+    {% if note.status == 'done' %}
+        {% if note.summary %}
+            <p>{{ note.summary|truncatewords:50 }}</p>
+        {% elif note.cleaned_text %}
+            <p>{{ note.cleaned_text|truncatewords:40 }}</p>
+        {% endif %}
+        {% for tag in note.tags.all %}<span class="tag-pill">{{ tag.name }}</span>{% endfor %}
+    {% elif note.status == 'failed' %}
+        <p><small>{{ note.error_message|default:"Ingestion failed." }}</small></p>
+        <button class="secondary" hx-post="{% url 'notes:retry' note.pk %}"
+                hx-target="#note-{{ note.pk }}" hx-swap="outerHTML">Retry</button>
+    {% else %}
+        <p><small>Fetching and processing source…</small></p>
+    {% endif %}
+
+    <footer style="display:flex; justify-content:space-between; align-items:center">
+        <small>{{ note.created_at|date:"M j, Y H:i" }}</small>
+        <button class="secondary outline"
+                hx-post="{% url 'notes:delete' note.pk %}"
+                hx-target="#note-{{ note.pk }}" hx-swap="outerHTML"
+                hx-confirm="Delete this note?">Delete</button>
+    </footer>
+</article>
