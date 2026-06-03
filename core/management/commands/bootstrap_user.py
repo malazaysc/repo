@@ -7,8 +7,9 @@ Reads ADMIN_USERNAME / ADMIN_EMAIL / ADMIN_PASSWORD (defaults: admin/admin).
 """
 import os
 
+from django.conf import settings
 from django.contrib.auth import get_user_model
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandError
 
 
 class Command(BaseCommand):
@@ -18,7 +19,19 @@ class Command(BaseCommand):
         User = get_user_model()
         username = os.environ.get("ADMIN_USERNAME", "admin")
         email = os.environ.get("ADMIN_EMAIL", "admin@example.com")
-        password = os.environ.get("ADMIN_PASSWORD", "admin")
+
+        # Never bake a default password outside local dev (S6).
+        password = os.environ.get("ADMIN_PASSWORD")
+        if not password:
+            if settings.DEBUG:
+                password = "admin"
+                self.stdout.write(
+                    self.style.WARNING(
+                        "ADMIN_PASSWORD unset — using insecure 'admin' (DEBUG only)."
+                    )
+                )
+            else:
+                raise CommandError("ADMIN_PASSWORD must be set (refusing to create a default user).")
 
         user, created = User.objects.get_or_create(
             username=username, defaults={"email": email}

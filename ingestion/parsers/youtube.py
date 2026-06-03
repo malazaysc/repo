@@ -2,12 +2,13 @@
 from __future__ import annotations
 
 import re
+from urllib.parse import urlparse
 
 from notes.models import SourceType
 
 from .base import BaseParser, ParsedContent, ParsedImage, ParserError
 
-_YT_HOSTS = ("youtube.com", "www.youtube.com", "m.youtube.com", "youtu.be")
+_YT_HOSTS = frozenset({"youtube.com", "www.youtube.com", "m.youtube.com", "youtu.be"})
 _VIDEO_ID_RE = re.compile(
     r"(?:v=|/embed/|/shorts/|youtu\.be/)([0-9A-Za-z_-]{11})"
 )
@@ -23,7 +24,8 @@ class YouTubeParser(BaseParser):
     source_type = SourceType.YOUTUBE
 
     def can_handle(self, url: str) -> bool:
-        return any(host in url for host in _YT_HOSTS) and extract_video_id(url) is not None
+        host = (urlparse(url).hostname or "").lower()
+        return host in _YT_HOSTS and extract_video_id(url) is not None
 
     def parse(self, url: str) -> ParsedContent:
         video_id = extract_video_id(url)

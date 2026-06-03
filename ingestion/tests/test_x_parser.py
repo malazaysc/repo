@@ -15,10 +15,19 @@ from notes.models import SourceType
         ("https://mobile.twitter.com/jack/status/20", True),
         ("https://example.com/jack", False),
         ("https://youtube.com/watch?v=x", False),
+        # Look-alike / spoofed hosts must NOT match (S4).
+        ("https://x.com.evil.com/jack", False),
+        ("https://evil.com/?u=//x.com/jack", False),
+        ("https://notx.com/jack", False),
     ],
 )
 def test_x_can_handle(url, handled):
     assert XParser().can_handle(url) is handled
+
+
+def test_scrape_x_rejects_non_x_host():
+    with pytest.raises(x_scraper.XScrapeError, match="non-X host"):
+        x_scraper.scrape_x("https://x.com.evil.com/jack", storage_state_path=None)
 
 
 @override_settings(X_PARSER_ENABLED=False)

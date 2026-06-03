@@ -5,7 +5,7 @@
 {% block content %}
 <p><a href="{% url 'notes:dashboard' %}">← Back to notes</a></p>
 
-<article x-data="{ editing: false }">
+<article x-data="{ editing: {% if open_editor %}true{% else %}false{% endif %} }">
     <header>
         <span class="source-badge">{{ note.get_source_type_display }}</span>
         <h2 style="margin:.3rem 0">{{ note.title|default:"Untitled" }}</h2>
@@ -63,6 +63,9 @@
 
     <form x-show="editing" x-cloak method="post" action="{% url 'notes:edit' note.pk %}">
         {% csrf_token %}
+        {% if edit_form.errors %}
+            <small style="color:var(--pico-del-color)">Couldn’t save: {{ edit_form.errors }}</small>
+        {% endif %}
         <label>Title <input type="text" name="title" value="{{ note.title }}"></label>
         <label>Summary <textarea name="summary" rows="4">{{ note.summary }}</textarea></label>
         <label>Content <textarea name="cleaned_text" rows="14">{{ note.cleaned_text }}</textarea></label>

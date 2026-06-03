@@ -103,7 +103,15 @@ def note_edit(request, pk):
     if form.is_valid():
         form.save()
         note.update_search_vector()
-    return redirect(note.get_absolute_url())
+        return redirect(note.get_absolute_url())
+
+    # Invalid — re-render the detail page with the editor open and errors shown.
+    return render(
+        request,
+        "notes/detail.html",
+        {"note": note, "edit_form": form, "open_editor": True},
+        status=422,
+    )
 
 
 @login_required

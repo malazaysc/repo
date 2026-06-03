@@ -98,6 +98,9 @@ STORAGES = {
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
+# Don't let browsers MIME-sniff responses (defense for served media; see S7).
+SECURE_CONTENT_TYPE_NOSNIFF = True
+
 # Auth redirects (single-user login)
 LOGIN_URL = "login"
 LOGIN_REDIRECT_URL = "notes:dashboard"

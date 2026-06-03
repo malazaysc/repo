@@ -12,15 +12,15 @@ the user to capture a session or paste the content manually.
 from __future__ import annotations
 
 import os
+from urllib.parse import urlparse
 
 from django.conf import settings
 
 from notes.models import SourceType
 
 from ..browser import x_scraper
+from ..browser.x_scraper import X_HOSTS
 from .base import BaseParser, ParsedContent, ParsedImage, ParserError
-
-_X_HOSTS = ("twitter.com", "x.com", "www.twitter.com", "www.x.com", "mobile.twitter.com")
 
 
 class XParser(BaseParser):
@@ -28,7 +28,8 @@ class XParser(BaseParser):
     source_type = SourceType.X
 
     def can_handle(self, url: str) -> bool:
-        return any(f"//{host}/" in url or url.startswith(f"https://{host}") for host in _X_HOSTS)
+        host = (urlparse(url).hostname or "").lower()
+        return host in X_HOSTS
 
     def parse(self, url: str) -> ParsedContent:
         if not getattr(settings, "X_PARSER_ENABLED", False):

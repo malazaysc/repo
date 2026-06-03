@@ -7,7 +7,6 @@ from ingestion.ai import client as ai_client
 from ingestion.ai.client import _parse_response, summarize
 from notes.models import Note, NoteStatus, SourceType
 
-
 # --- Fake Anthropic client -------------------------------------------------
 
 class _Block:
@@ -50,10 +49,13 @@ def test_parse_response_fenced_json():
     assert res.tags == ["a"]
 
 
-def test_parse_response_prose_fallback():
-    res = _parse_response("no json at all")
-    assert res.summary == "no json at all"
-    assert res.tags == []
+def test_parse_response_refusal_returns_none():
+    # A non-JSON model reply (e.g. a refusal) must NOT become the note body (C4).
+    assert _parse_response("I can't help with that.") is None
+
+
+def test_parse_response_empty_json_returns_none():
+    assert _parse_response('{"summary":"","highlights":[],"tags":[]}') is None
 
 
 # --- summarize gating ------------------------------------------------------

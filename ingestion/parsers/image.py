@@ -14,6 +14,7 @@ from notes.models import SourceType
 
 from .base import BaseParser, ParsedContent, ParsedImage
 
+# Note: .svg is intentionally excluded — SVGs can carry active content (XSS). See S7.
 IMAGE_EXTENSIONS = (
     ".jpg",
     ".jpeg",
@@ -21,7 +22,6 @@ IMAGE_EXTENSIONS = (
     ".gif",
     ".webp",
     ".bmp",
-    ".svg",
     ".avif",
     ".tiff",
 )

@@ -7,18 +7,13 @@ from __future__ import annotations
 
 from urllib.parse import urljoin
 
-import httpx
-
 from notes.models import SourceType
 
+from ..net import UnsafeURLError, safe_get_text
 from .base import BaseParser, ParsedContent, ParsedImage, ParserError
 
-_HEADERS = {
-    "User-Agent": (
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
-        "(KHTML, like Gecko) Chrome/124.0 Safari/537.36"
-    )
-}
+# Cap article HTML to bound memory (S2).
+MAX_HTML_BYTES = 10 * 1024 * 1024
 
 
 class ArticleParser(BaseParser):
@@ -32,7 +27,11 @@ class ArticleParser(BaseParser):
         html = self._fetch(url)
 
         title, text, metadata = self._extract_main(url, html)
-        images = self._extract_images(url, html)
+        # Image extraction is best-effort — never let it fail an otherwise-good parse.
+        try:
+            images = self._extract_images(url, html)
+        except Exception:
+            images = []
 
         if not text:
             raise ParserError("Could not extract readable text from this page.")
@@ -48,11 +47,11 @@ class ArticleParser(BaseParser):
 
     def _fetch(self, url: str) -> str:
         try:
-            resp = httpx.get(url, headers=_HEADERS, follow_redirects=True, timeout=20.0)
-            resp.raise_for_status()
-        except httpx.HTTPError as exc:
+            return safe_get_text(url, max_bytes=MAX_HTML_BYTES)
+        except UnsafeURLError as exc:
+            raise ParserError(f"Refusing to fetch this URL: {exc}") from exc
+        except Exception as exc:  # httpx transport/status errors
             raise ParserError(f"Failed to fetch the page: {exc}") from exc
-        return resp.text
 
     def _extract_main(self, url: str, html: str) -> tuple[str, str, dict]:
         metadata: dict = {}
@@ -105,14 +104,16 @@ class ArticleParser(BaseParser):
 
         # Prefer the OpenGraph image first.
         og = soup.find("meta", property="og:image")
-        if og and og.get("content"):
-            images.append(ParsedImage(url=urljoin(url, og["content"]), caption="og:image"))
+        og_content = og.get("content") if og else None
+        if isinstance(og_content, str) and og_content:
+            images.append(ParsedImage(url=urljoin(url, og_content), caption="og:image"))
 
         for img in soup.find_all("img"):
             src = img.get("src") or img.get("data-src")
-            if not src:
+            if not isinstance(src, str) or not src:
                 continue
-            images.append(ParsedImage(url=urljoin(url, src), caption=img.get("alt", "")))
+            alt = img.get("alt", "")
+            images.append(ParsedImage(url=urljoin(url, src), caption=alt if isinstance(alt, str) else ""))
             if len(images) >= limit:
                 break
         return images

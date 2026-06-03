@@ -8,6 +8,7 @@ from __future__ import annotations
 import logging
 import mimetypes
 
+import httpx
 from celery import shared_task
 
 from notes.models import Attachment, Note, NoteStatus, SourceType, Tag
@@ -45,15 +46,32 @@ def ingest_note(self, note_id: int) -> str:
     except ParserError as exc:
         # Expected, user-actionable failure — don't retry.
         logger.info("ingest_note: parser error for note %s: %s", note_id, exc)
-        note.mark_failed(str(exc))
+        _safe_mark_failed(note, str(exc))
         return "failed"
-    except Exception as exc:  # transient/unexpected — retry then fail
-        logger.exception("ingest_note: unexpected error for note %s", note_id)
+    except _TRANSIENT_ERRORS as exc:
+        # Network blips — worth retrying.
+        logger.warning("ingest_note: transient error for note %s: %s", note_id, exc)
         try:
             raise self.retry(exc=exc)
         except self.MaxRetriesExceededError:
-            note.mark_failed(f"Unexpected error: {exc}")
+            _safe_mark_failed(note, f"Temporary error, gave up after retries: {exc}")
             return "failed"
+    except Exception as exc:
+        # Deterministic bug — fail fast, don't burn the retry budget (C3).
+        logger.exception("ingest_note: unexpected error for note %s", note_id)
+        _safe_mark_failed(note, f"Unexpected error: {exc}")
+        return "failed"
+
+
+# Only network-ish failures are retried; everything else fails fast.
+_TRANSIENT_ERRORS = (httpx.TransportError, ConnectionError, TimeoutError)
+
+
+def _safe_mark_failed(note: Note, message: str) -> None:
+    try:
+        note.mark_failed(message)
+    except Exception:
+        logger.exception("ingest_note: could not mark note %s failed", note.pk)
 
 
 def _parse_from_url(note: Note) -> None:
@@ -111,7 +129,7 @@ def _run_ai(note: Note) -> None:
         note.tags.add(tag)
 
 
-def _describe_note_image(note: Note) -> "object | None":
+def _describe_note_image(note: Note) -> object | None:
     """Caption the note's first locally-stored image via Claude vision."""
     att = note.attachments.exclude(file="").first()
     if not att or not att.file:

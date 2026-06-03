@@ -12,8 +12,15 @@ from __future__ import annotations
 
 import logging
 import os
+from urllib.parse import urlparse
 
 logger = logging.getLogger(__name__)
+
+# Canonical X/Twitter hosts — the only origins we'll drive the authenticated
+# browser at. Shared with the parser's can_handle (S3/S4).
+X_HOSTS = frozenset(
+    {"twitter.com", "x.com", "www.twitter.com", "www.x.com", "mobile.twitter.com"}
+)
 
 # Selectors are heuristic — X changes its DOM often; keep them in one place.
 _TWEET_TEXT = '[data-testid="tweetText"]'
@@ -24,6 +31,12 @@ _WAIT_FOR = f"{_TWEET_TEXT}, article"
 
 class XScrapeError(Exception):
     """Raised when the browser scrape cannot produce usable content."""
+
+
+def _assert_x_host(url: str) -> None:
+    host = (urlparse(url).hostname or "").lower()
+    if host not in X_HOSTS:
+        raise XScrapeError(f"refusing to drive the authenticated browser at non-X host: {host}")
 
 
 def scrape_x(
@@ -38,6 +51,10 @@ def scrape_x(
     Raises :class:`XScrapeError` (or ImportError) on failure so the caller can
     surface a friendly message.
     """
+    # Never point the authenticated browser at a non-X origin (S3) — check first,
+    # before importing/launching anything.
+    _assert_x_host(url)
+
     try:
         from playwright.sync_api import sync_playwright
     except ImportError as exc:  # pragma: no cover - exercised via parser test
@@ -61,6 +78,8 @@ def scrape_x(
         page = context.new_page()
         try:
             page.goto(url, wait_until="domcontentloaded", timeout=timeout_ms)
+            # A redirect could land us off-origin while authenticated — re-check.
+            _assert_x_host(page.url)
             try:
                 page.wait_for_selector(_WAIT_FOR, timeout=timeout_ms)
             except Exception:

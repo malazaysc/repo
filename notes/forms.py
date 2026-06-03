@@ -1,4 +1,5 @@
 from django import forms
+from django.core.validators import URLValidator
 
 from .models import Note, SourceType
 
@@ -9,6 +10,9 @@ class AddSourceForm(forms.Form):
     source_url = forms.URLField(
         required=False,
         assume_scheme="https",
+        # Only http/https — reject ftp/file/etc. so they fail cleanly, not via a
+        # late ValueError in the worker (C1).
+        validators=[URLValidator(schemes=["http", "https"])],
         widget=forms.URLInput(
             attrs={"placeholder": "https://youtube.com/... or any link", "autocomplete": "off"}
         ),

@@ -11,22 +11,19 @@ import mimetypes
 import os
 from urllib.parse import urlparse
 
-import httpx
 from django.core.files.base import ContentFile
 
 from notes.models import Note
 
-logger = logging.getLogger(__name__)
+from .net import safe_get
 
-_HEADERS = {
-    "User-Agent": (
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
-        "(KHTML, like Gecko) Chrome/124.0 Safari/537.36"
-    )
-}
+logger = logging.getLogger(__name__)
 
 # Skip absurdly large downloads (bytes).
 MAX_IMAGE_BYTES = 15 * 1024 * 1024
+
+# Disallowed image content types (active content / XSS risk). See S7.
+_BLOCKED_CONTENT_TYPES = {"image/svg+xml"}
 
 
 def _filename_for(url: str, content_type: str | None) -> str:
@@ -48,20 +45,19 @@ def download_attachments(note: Note, *, limit: int = 12) -> int:
     pending = note.attachments.filter(file="").exclude(remote_url="")[:limit]
     for att in pending:
         try:
-            resp = httpx.get(
-                att.remote_url, headers=_HEADERS, follow_redirects=True, timeout=20.0
-            )
-            resp.raise_for_status()
-        except httpx.HTTPError as exc:
-            logger.info("attachment download failed (%s): %s", att.remote_url, exc)
+            content, resp = safe_get(att.remote_url, max_bytes=MAX_IMAGE_BYTES)
+        except Exception as exc:  # SSRF/size guard (UnsafeURLError) + transport errors
+            logger.info("attachment download skipped (%s): %s", att.remote_url, exc)
             continue
 
-        content = resp.content
-        if not content or len(content) > MAX_IMAGE_BYTES:
+        if not content:
             continue
-        content_type = resp.headers.get("content-type", "")
+        content_type = resp.headers.get("content-type", "").split(";")[0].strip().lower()
         if content_type and not content_type.startswith("image/"):
             # Not actually an image — leave the remote_url reference as-is.
+            continue
+        if content_type in _BLOCKED_CONTENT_TYPES:
+            logger.info("attachment blocked (active-content type %s): %s", content_type, att.remote_url)
             continue
 
         filename = _filename_for(att.remote_url, content_type)

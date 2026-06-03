@@ -151,17 +151,25 @@ def describe_image(image_bytes: bytes, media_type: str) -> AISummary | None:
 
 
 def _parse_response(raw: str) -> AISummary | None:
-    # Tolerate models that wrap JSON in prose or code fences.
+    # Tolerate models that wrap JSON in prose or code fences. If there's no JSON
+    # object at all (e.g. a model refusal), treat it as "no summary" rather than
+    # persisting raw prose as the note body (C4).
     start, end = raw.find("{"), raw.rfind("}")
     if start == -1 or end == -1:
-        return AISummary(summary=raw[:1000])
+        logger.info("AI response had no JSON object; skipping summary.")
+        return None
     try:
         data = json.loads(raw[start : end + 1])
     except json.JSONDecodeError:
-        return AISummary(summary=raw[:1000])
+        logger.info("AI response JSON was malformed; skipping summary.")
+        return None
 
-    return AISummary(
+    result = AISummary(
         summary=str(data.get("summary", "")).strip(),
         highlights=[str(h) for h in data.get("highlights", []) if h][:12],
         tags=[str(t).lower().strip() for t in data.get("tags", []) if t][:8],
     )
+    # Nothing usable parsed out — don't overwrite content with an empty summary.
+    if not result.summary and not result.highlights and not result.tags:
+        return None
+    return result

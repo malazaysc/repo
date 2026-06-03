@@ -16,6 +16,10 @@ from notes.models import SourceType
         ("https://example.com/some/post", "article", SourceType.ARTICLE),
         ("https://example.com/photo.JPG", "image", SourceType.IMAGE),
         ("https://cdn.example.com/a/b/pic.png?w=200", "image", SourceType.IMAGE),
+        # .svg is no longer an image source (S7) — falls through to article.
+        ("https://example.com/diagram.svg", "article", SourceType.ARTICLE),
+        # Look-alike YouTube host must not route to the YouTube parser (S4).
+        ("https://youtube.com.evil.com/watch?v=dQw4w9WgXcQ", "article", SourceType.ARTICLE),
     ],
 )
 def test_get_parser_routes_by_url(url, expected_name, expected_type):
